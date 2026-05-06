@@ -23,10 +23,30 @@
     try {
       await msalInstance.initialize();
       const result = await msalInstance.handleRedirectPromise();
-      // If result is null we're not in a redirect flow — just close
-      if (!result && window.opener) window.close();
+
+      if (result && window.opener) {
+        // Explicitly post the token + account back to the CRM iframe.
+        // postMessage works cross-origin; '*' is safe here because we're
+        // posting TO window.opener (the CRM), not broadcasting to everyone.
+        window.opener.postMessage({
+          type:        'spectrum-msal-success',
+          accessToken: result.accessToken,
+          expiresOn:   result.expiresOn?.getTime() ?? (Date.now() + 3_600_000),
+          account: {
+            username:      result.account.username,
+            name:          result.account.name ?? result.account.username,
+            homeAccountId: result.account.homeAccountId,
+          }
+        }, '*');
+      }
     } catch (e) {
-      console.error("MSAL redirect handler error:", e);
+      console.error('MSAL redirect error:', e);
+      if (window.opener) {
+        window.opener.postMessage({ type: 'spectrum-msal-error', error: String(e) }, '*');
+      }
+    } finally {
+      // Always close the popup after 500 ms regardless of outcome
+      setTimeout(() => window.close(), 500);
     }
   </script>
 </body>
