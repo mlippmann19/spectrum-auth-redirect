@@ -4,50 +4,35 @@
   <meta charset="utf-8" />
   <title>Spectrum Auth</title>
   <style>
-    body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f1117; font-family: system-ui, sans-serif; color: #6b7280; font-size: 13px; }
+    body { margin: 0; display: flex; align-items: center; justify-content: center;
+           min-height: 100vh; background: #0f1117; font-family: system-ui, sans-serif;
+           color: #6b7280; font-size: 13px; }
   </style>
 </head>
 <body>
   <span>Completing sign-in…</span>
-  <script type="module">
-    import { PublicClientApplication } from "https://esm.sh/@azure/msal-browser@5.9.0";
+  <script>
+    // No MSAL here. Just read the auth code from the URL and hand it
+    // back to the CRM window via postMessage, then close.
+    const params = new URLSearchParams(window.location.search);
+    const code   = params.get('code');
+    const state  = params.get('state');
+    const error  = params.get('error');
 
-    const msalInstance = new PublicClientApplication({
-      auth: {
-        clientId:    "0cf4982d-30a6-4c1d-b6b9-f294937e4300",
-        authority:   "https://login.microsoftonline.com/6075c66e-f404-4901-9c57-9fb82115c61c",
-        redirectUri: window.location.origin + window.location.pathname,
-      }
-    });
-
-    try {
-      await msalInstance.initialize();
-      const result = await msalInstance.handleRedirectPromise();
-
-      if (result && window.opener) {
-        // Explicitly post the token + account back to the CRM iframe.
-        // postMessage works cross-origin; '*' is safe here because we're
-        // posting TO window.opener (the CRM), not broadcasting to everyone.
-        window.opener.postMessage({
-          type:        'spectrum-msal-success',
-          accessToken: result.accessToken,
-          expiresOn:   result.expiresOn?.getTime() ?? (Date.now() + 3_600_000),
-          account: {
-            username:      result.account.username,
-            name:          result.account.name ?? result.account.username,
-            homeAccountId: result.account.homeAccountId,
-          }
-        }, '*');
-      }
-    } catch (e) {
-      console.error('MSAL redirect error:', e);
-      if (window.opener) {
-        window.opener.postMessage({ type: 'spectrum-msal-error', error: String(e) }, '*');
-      }
-    } finally {
-      // Always close the popup after 500 ms regardless of outcome
-      setTimeout(() => window.close(), 500);
+    if (code && window.opener) {
+      window.opener.postMessage(
+        { type: 'spectrum-oauth-code', code, returnedState: state },
+        '*'
+      );
+    } else if (error && window.opener) {
+      window.opener.postMessage(
+        { type: 'spectrum-oauth-error', error },
+        '*'
+      );
     }
+
+    // Close after a short delay so the postMessage is delivered
+    setTimeout(() => window.close(), 300);
   </script>
 </body>
 </html>
