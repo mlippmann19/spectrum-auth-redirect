@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Spectrum Auth</title>
+  <style>
+    body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #0f1117; font-family: system-ui, sans-serif; color: #6b7280; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <span>Completing sign-in…</span>
+  <script type="module">
+    import { PublicClientApplication } from "https://esm.sh/@azure/msal-browser@5.9.0";
+
+    const msalInstance = new PublicClientApplication({
+      auth: {
+        clientId:    "0cf4982d-30a6-4c1d-b6b9-f294937e4300",
+        authority:   "https://login.microsoftonline.com/6075c66e-f404-4901-9c57-9fb82115c61c",
+        redirectUri: window.location.origin + window.location.pathname,
+      }
+    });
+
+    try {
+      await msalInstance.initialize();
+      const result = await msalInstance.handleRedirectPromise();
+      // If result is null we're not in a redirect flow — just close
+      if (!result && window.opener) window.close();
+    } catch (e) {
+      console.error("MSAL redirect handler error:", e);
+    }
+  </script>
+</body>
+</html>
